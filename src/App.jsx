@@ -553,7 +553,7 @@ export default function App() {
         )}
       </div>
 
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "#fff", borderTop: "1px solid #f0f0f0", display: "flex", padding: "8px 0 22px", zIndex: 100 }}>
+      <div style={{ position: "fixed", bottom: 0, left: 0, width: "100%", background: "#fff", borderTop: "1px solid #f0f0f0", display: "flex", padding: "8px 0 22px", zIndex: 100 }}>
         {[{id:"dashboard",icon:"🏠",label:"Inicio"},{id:"transactions",icon:"💳",label:"Movimientos"},{id:"analytics",icon:"📈",label:"Análisis"},{id:"budgets",icon:"🎯",label:"Metas"},{id:"contacts",icon:"👥",label:"Personas"}].map(n => (
           <button key={n.id} onClick={() => setTab(n.id)} style={{ flex: 1, background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", padding: "4px 0", color: tab === n.id ? "#4f46e5" : "#9ca3af" }}>
             <span style={{ fontSize: 22 }}>{n.icon}</span>
