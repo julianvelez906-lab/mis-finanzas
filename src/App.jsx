@@ -388,7 +388,7 @@ export default function App() {
   if (loading) return <Spinner />;
 
   return (
-    <div style={{ fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif", background: "#f5f5f7", minHeight: "100vh", maxWidth: 430, margin: "0 auto", position: "relative", paddingBottom: 88 }}>
+    <div style={{ fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif", background: "#f5f5f7", minHeight: "100vh", maxWidth: "100%", margin: "0 auto", position: "relative", paddingBottom: 88 }}>
       {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
 
       <div style={{ background: "linear-gradient(145deg,#4f46e5 0%,#7c3aed 60%,#a855f7 100%)", padding: "52px 20px 28px", color: "#fff", position: "relative" }}>
