@@ -85,7 +85,7 @@ function Field({ label, children }) {
   );
 }
 
-const inputSx = { width: "100%", padding: "11px 14px", borderRadius: 12, border: "1.5px solid #e5e7eb", fontSize: 15, outline: "none", boxSizing: "border-box", background: "#fafafa", fontFamily: "inherit", color: "#1f2937" };
+const inputSx = { width: "100%", padding: "11px 14px", borderRadius: 12, border: "1.5px solid #e5e7eb", fontSize: 15, outline: "none", boxSizing: "border-box", background: "#fafafa", fontFamily: "inherit" };
 const Inp = (p) => <input style={inputSx} {...p} />;
 const Sel = ({ children, ...p }) => <select style={{ ...inputSx, appearance: "none" }} {...p}>{children}</select>;
 const Textarea = (p) => <textarea style={{ ...inputSx, resize: "none", minHeight: 64 }} {...p} />;
@@ -213,6 +213,70 @@ function LoginScreen({ onLogin }) {
           </>}
           {mode !== "login" && <button onClick={() => { setMode("login"); setError(""); setMsg(""); }} style={{ background: "none", border: "none", color: "#4f46e5", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>← Volver a iniciar sesión</button>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+function DebtCard({ d, dtype, currency, fmtFn, fmtDate, onToggle, onDelete, onAbono, notify }) {
+  const [inputAmt, setInputAmt] = useState("");
+  const paid_amount = d.paid_amount || 0;
+  const remaining = d.amount - paid_amount;
+  const pct = Math.min((paid_amount / d.amount) * 100, 100);
+  const done = remaining <= 0;
+
+  const handle = async () => {
+    const n = parseFloat(inputAmt);
+    if (!n || n <= 0) return;
+    await onAbono(d.id, n);
+    setInputAmt("");
+  };
+
+  return (
+    <div style={{ background: d.paid ? "#f9fafb" : dtype === "owed" ? "#f0fdf4" : "#fff1f2", borderRadius: 12, padding: 12, marginBottom: 10, opacity: d.paid ? 0.6 : 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, textDecoration: d.paid ? "line-through" : "none" }}>{d.person}</div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>{d.reason || "Sin descripción"} · {fmtDate(d.date)}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontWeight: 800, color: dtype === "owed" ? "#059669" : "#dc2626", fontSize: 16 }}>{fmtFn(d.amount, currency)}</div>
+          <div style={{ fontSize: 11, color: d.paid ? "#059669" : "#f59e0b", fontWeight: 700 }}>{d.paid ? "✅ Liquidado" : "🕐 Pendiente"}</div>
+        </div>
+      </div>
+
+      {paid_amount > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <ProgressBar value={paid_amount} max={d.amount} color={dtype === "owed" ? "#059669" : "#dc2626"} height={8} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 4 }}>
+            <span style={{ color: "#6b7280" }}>Abonado: <strong>{fmtFn(paid_amount, currency)}</strong></span>
+            <span style={{ color: dtype === "owed" ? "#059669" : "#dc2626", fontWeight: 700 }}>
+              {done ? "¡Saldado!" : "Falta: " + fmtFn(remaining, currency)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {!d.paid && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+            {dtype === "owed" ? "Registrar abono recibido:" : "Registrar abono realizado:"}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input type="number" placeholder="Monto del abono..." value={inputAmt} onChange={e => setInputAmt(e.target.value)} onKeyDown={e => e.key === "Enter" && handle()}
+              style={{ flex: 1, padding: "10px 14px", borderRadius: 12, border: "1.5px solid " + (dtype === "owed" ? "#059669" : "#dc2626"), fontSize: 14, outline: "none", background: "#fff", fontFamily: "inherit", color: "#1f2937" }} />
+            <button onClick={handle} disabled={!inputAmt || parseFloat(inputAmt) <= 0}
+              style={{ background: inputAmt && parseFloat(inputAmt) > 0 ? (dtype === "owed" ? "#059669" : "#dc2626") : "#d1d5db", color: "#fff", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 18, fontWeight: 800, cursor: inputAmt && parseFloat(inputAmt) > 0 ? "pointer" : "not-allowed" }}>+</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button onClick={() => onToggle(d.id)} style={{ flex: 1, background: d.paid ? "#f3f4f6" : "#d1fae5", color: d.paid ? "#6b7280" : "#059669", border: "none", borderRadius: 10, padding: "7px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          {d.paid ? "↩ Reabrir" : "✅ Liquidar todo"}
+        </button>
+        <button onClick={() => onDelete(d.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🗑</button>
       </div>
     </div>
   );
@@ -358,13 +422,29 @@ export default function App() {
   };
   const toggleDebt = async (id) => { const d = debts.find(d => d.id === id); await DB.update("debts", id, { paid: !d.paid }, token); setDebts(p => p.map(d => d.id === id ? { ...d, paid: !d.paid } : d)); notify("✅ Actualizado"); };
   const deleteDebt = async (id) => { await DB.remove("debts", id, token); setDebts(p => p.filter(d => d.id !== id)); };
+  const abonoDebt = async (id, amt) => {
+    const d = debts.find(d => d.id === id); if (!d) return;
+    const newPaid = Math.min((d.paid_amount || 0) + amt, d.amount);
+    const isFullyPaid = newPaid >= d.amount;
+    try {
+      await DB.update("debts", id, { paid_amount: newPaid, paid: isFullyPaid }, token);
+      setDebts(p => p.map(d => d.id === id ? { ...d, paid_amount: newPaid, paid: isFullyPaid } : d));
+      // Auto-create transaction
+      const txType = d.type === "owing" ? "expense" : "income";
+      const txDesc = d.type === "owing" ? "Abono a " + d.person : "Abono recibido de " + d.person;
+      const row = { type: txType, amount: amt, category: d.type === "owing" ? "Otro gasto" : "Otro ingreso", description: txDesc, date: today(), contact: d.person, note: "Abono de deuda", user_id: userId };
+      const [saved] = await DB.insert("transactions", row, token);
+      setTransactions(p => [...p, saved]);
+      notify(isFullyPaid ? "🎉 Deuda saldada - movimiento registrado" : "✅ Abono registrado en movimientos");
+    } catch(e) { notify("⚠️ Error: " + e.message); }
+  };
   const deleteContact = async (id) => {
     try {
       await DB.remove("contacts", id, token);
       setContacts(p => p.filter(c => c.id !== id));
       setShowContactDetail(null);
-      notify("Contacto eliminado");
-    } catch(e) { notify("Error: " + e.message); }
+      notify("🗑 Contacto eliminado");
+    } catch(e) { notify("⚠️ Error: " + e.message); }
   };
 
   const addContact = async () => {
@@ -397,7 +477,7 @@ export default function App() {
   if (loading) return <Spinner />;
 
   return (
-    <div style={{ fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif", background: "#f5f5f7", minHeight: "100vh", maxWidth: "100%", margin: "0 auto", position: "relative", paddingBottom: 88 }}>
+    <div style={{ fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif", background: "#f5f5f7", minHeight: "100vh", maxWidth: 430, margin: "0 auto", position: "relative", paddingBottom: 88 }}>
       {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
 
       <div style={{ background: "linear-gradient(145deg,#4f46e5 0%,#7c3aed 60%,#a855f7 100%)", padding: "52px 20px 28px", color: "#fff", position: "relative" }}>
@@ -544,7 +624,7 @@ export default function App() {
               {["owed","owing"].map(dtype => {
                 const list = debts.filter(d => d.type === dtype);
                 if (list.length === 0) return null;
-                return <div key={dtype}><div style={{ fontSize: 13, fontWeight: 800, color: dtype === "owed" ? "#059669" : "#dc2626", marginBottom: 8 }}>{dtype === "owed" ? "🤝 Me deben" : "⚠️ Yo debo"}</div>{list.map(d => <div key={d.id} style={{ background: d.paid ? "#f9fafb" : dtype === "owed" ? "#f0fdf4" : "#fff1f2", borderRadius: 12, padding: 12, marginBottom: 10, opacity: d.paid ? 0.6 : 1 }}><div style={{ display: "flex", justifyContent: "space-between" }}><div><div style={{ fontWeight: 700, fontSize: 14, textDecoration: d.paid ? "line-through" : "none" }}>{d.person}</div><div style={{ fontSize: 12, color: "#6b7280" }}>{d.reason || "Sin descripción"} · {fmtDate(d.date)}</div></div><div style={{ textAlign: "right" }}><div style={{ fontWeight: 800, color: dtype === "owed" ? "#059669" : "#dc2626", fontSize: 16 }}>{fmt(d.amount, currency)}</div><div style={{ fontSize: 11, color: d.paid ? "#059669" : "#f59e0b", fontWeight: 700 }}>{d.paid ? "✅ Liquidado" : "🕐 Pendiente"}</div></div></div><div style={{ display: "flex", gap: 8, marginTop: 10 }}><button onClick={() => toggleDebt(d.id)} style={{ flex: 1, background: d.paid ? "#f3f4f6" : "#d1fae5", color: d.paid ? "#6b7280" : "#059669", border: "none", borderRadius: 10, padding: "7px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{d.paid ? "↩ Reabrir" : "✅ Liquidar"}</button><button onClick={() => deleteDebt(d.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🗑</button></div></div>)}</div>;
+                return <div key={dtype}><div style={{ fontSize: 13, fontWeight: 800, color: dtype === "owed" ? "#059669" : "#dc2626", marginBottom: 8 }}>{dtype === "owed" ? "🤝 Me deben" : "⚠️ Yo debo"}</div>{list.map(d => <DebtCard key={d.id} d={d} dtype={dtype} currency={currency} fmtFn={fmt} fmtDate={fmtDate} onToggle={toggleDebt} onDelete={deleteDebt} onAbono={abonoDebt} notify={notify} />)}</div>;
               })}
             </div>
           </>
@@ -562,7 +642,7 @@ export default function App() {
         )}
       </div>
 
-      <div style={{ position: "fixed", bottom: 0, left: 0, width: "100%", background: "#fff", borderTop: "1px solid #f0f0f0", display: "flex", padding: "8px 0 22px", zIndex: 100 }}>
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "#fff", borderTop: "1px solid #f0f0f0", display: "flex", padding: "8px 0 22px", zIndex: 100 }}>
         {[{id:"dashboard",icon:"🏠",label:"Inicio"},{id:"transactions",icon:"💳",label:"Movimientos"},{id:"analytics",icon:"📈",label:"Análisis"},{id:"budgets",icon:"🎯",label:"Metas"},{id:"contacts",icon:"👥",label:"Personas"}].map(n => (
           <button key={n.id} onClick={() => setTab(n.id)} style={{ flex: 1, background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", padding: "4px 0", color: tab === n.id ? "#4f46e5" : "#9ca3af" }}>
             <span style={{ fontSize: 22 }}>{n.icon}</span>
@@ -638,7 +718,9 @@ export default function App() {
           <div style={{ textAlign: "center", marginBottom: 20 }}><div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#4f46e5,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 28, margin: "0 auto 12px" }}>{showContactDetail.name.charAt(0).toUpperCase()}</div><div style={{ fontWeight: 800, fontSize: 20 }}>{showContactDetail.name}</div>{showContactDetail.phone && <div style={{ color: "#9ca3af" }}>📞 {showContactDetail.phone}</div>}</div>
           <div style={{ background: "#f0fdf4", borderRadius: 14, padding: 14, marginBottom: 16, textAlign: "center" }}><div style={{ fontSize: 11, color: "#059669", fontWeight: 700 }}>TOTAL RECIBIDO</div><div style={{ fontSize: 30, fontWeight: 900, color: "#059669" }}>{fmt(contactTotal(showContactDetail.name), currency)}</div></div>
           {showContactDetail.notes && <div style={{ background: "#fafafa", borderRadius: 12, padding: 12, fontSize: 14, color: "#6b7280", marginBottom: 14 }}>📝 {showContactDetail.notes}</div>}
-          <div style={{ marginBottom: 16 }}><Btn onClick={() => deleteContact(showContactDetail.id)} variant="danger" full>Eliminar persona</Btn></div>
+          <div style={{ marginBottom: 16 }}>
+            <Btn onClick={() => deleteContact(showContactDetail.id)} variant="danger" full>🗑 Eliminar persona</Btn>
+          </div>
           <div style={{ fontWeight: 800, marginBottom: 10 }}>Movimientos vinculados</div>
           {transactions.filter(t => t.contact === showContactDetail.name).length === 0 ? <div style={{ color: "#9ca3af", fontSize: 14 }}>Sin movimientos aún.</div> : transactions.filter(t => t.contact === showContactDetail.name).sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid #f3f4f6" }}><div><div style={{ fontWeight: 700, fontSize: 14 }}>{t.description}</div><div style={{ fontSize: 12, color: "#9ca3af" }}>{fmtDate(t.date)}</div></div><div style={{ fontWeight: 800, color: "#10b981" }}>+{fmt(t.amount, currency)}</div></div>)}
         </Modal>
