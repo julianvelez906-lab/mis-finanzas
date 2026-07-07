@@ -85,7 +85,7 @@ function Field({ label, children }) {
   );
 }
 
-const inputSx = { width: "100%", padding: "11px 14px", borderRadius: 12, border: "1.5px solid #e5e7eb", fontSize: 15, outline: "none", boxSizing: "border-box", background: "#fafafa", fontFamily: "inherit" };
+const inputSx = { width: "100%", padding: "11px 14px", borderRadius: 12, border: "1.5px solid #e5e7eb", fontSize: 15, outline: "none", boxSizing: "border-box", background: "#fff", color: "#1f2937", fontFamily: "inherit" };
 const Inp = (p) => <input style={inputSx} {...p} />;
 const Sel = ({ children, ...p }) => <select style={{ ...inputSx, appearance: "none" }} {...p}>{children}</select>;
 const Textarea = (p) => <textarea style={{ ...inputSx, resize: "none", minHeight: 64 }} {...p} />;
