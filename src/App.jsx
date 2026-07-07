@@ -358,6 +358,15 @@ export default function App() {
   };
   const toggleDebt = async (id) => { const d = debts.find(d => d.id === id); await DB.update("debts", id, { paid: !d.paid }, token); setDebts(p => p.map(d => d.id === id ? { ...d, paid: !d.paid } : d)); notify("✅ Actualizado"); };
   const deleteDebt = async (id) => { await DB.remove("debts", id, token); setDebts(p => p.filter(d => d.id !== id)); };
+  const deleteContact = async (id) => {
+    try {
+      await DB.remove("contacts", id, token);
+      setContacts(p => p.filter(c => c.id !== id));
+      setShowContactDetail(null);
+      notify("Contacto eliminado");
+    } catch(e) { notify("Error: " + e.message); }
+  };
+
   const addContact = async () => {
     if (!contactForm.name) return;
     try { const [saved] = await DB.insert("contacts", { name: contactForm.name, phone: contactForm.phone || "", notes: contactForm.notes || "", user_id: userId }, token); setContacts(p => [...p, saved]); setContactForm({ name: "", phone: "", notes: "" }); setShowAddContact(false); notify("👤 Contacto guardado"); } catch (e) { notify("⚠️ Error: " + e.message); }
@@ -629,6 +638,7 @@ export default function App() {
           <div style={{ textAlign: "center", marginBottom: 20 }}><div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#4f46e5,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 28, margin: "0 auto 12px" }}>{showContactDetail.name.charAt(0).toUpperCase()}</div><div style={{ fontWeight: 800, fontSize: 20 }}>{showContactDetail.name}</div>{showContactDetail.phone && <div style={{ color: "#9ca3af" }}>📞 {showContactDetail.phone}</div>}</div>
           <div style={{ background: "#f0fdf4", borderRadius: 14, padding: 14, marginBottom: 16, textAlign: "center" }}><div style={{ fontSize: 11, color: "#059669", fontWeight: 700 }}>TOTAL RECIBIDO</div><div style={{ fontSize: 30, fontWeight: 900, color: "#059669" }}>{fmt(contactTotal(showContactDetail.name), currency)}</div></div>
           {showContactDetail.notes && <div style={{ background: "#fafafa", borderRadius: 12, padding: 12, fontSize: 14, color: "#6b7280", marginBottom: 14 }}>📝 {showContactDetail.notes}</div>}
+          <div style={{ marginBottom: 16 }}><Btn onClick={() => deleteContact(showContactDetail.id)} variant="danger" full>Eliminar persona</Btn></div>
           <div style={{ fontWeight: 800, marginBottom: 10 }}>Movimientos vinculados</div>
           {transactions.filter(t => t.contact === showContactDetail.name).length === 0 ? <div style={{ color: "#9ca3af", fontSize: 14 }}>Sin movimientos aún.</div> : transactions.filter(t => t.contact === showContactDetail.name).sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid #f3f4f6" }}><div><div style={{ fontWeight: 700, fontSize: 14 }}>{t.description}</div><div style={{ fontSize: 12, color: "#9ca3af" }}>{fmtDate(t.date)}</div></div><div style={{ fontWeight: 800, color: "#10b981" }}>+{fmt(t.amount, currency)}</div></div>)}
         </Modal>
